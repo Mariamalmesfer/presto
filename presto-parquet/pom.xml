@@ -222,7 +222,6 @@
                     </ignoredResourcePatterns>
                     <ignoredClassPatterns>
                         <ignoredClassPattern>shaded.parquet.it.unimi.dsi.fastutil.*</ignoredClassPattern>
-                        <ignoredClassPattern>module-info</ignoredClassPattern>
                         <ignoredClassPattern>com.facebook.presto.parquet.batchreader.*BatchReader</ignoredClassPattern>
                     </ignoredClassPatterns>
                 </configuration>
