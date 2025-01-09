@@ -23,6 +23,8 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.SSLSession;
 import java.io.IOException;
 import java.util.Optional;
 
@@ -63,7 +65,8 @@ public class TestQueryExecutor
                 .addHeader(CONTENT_TYPE, "application/json")
                 .setBody(SERVER_INFO_CODEC.toJson(expected)));
 
-        QueryExecutor executor = new QueryExecutor(new OkHttpClient());
+        OkHttpClient.Builder builder = new OkHttpClient().newBuilder();
+        QueryExecutor executor = new QueryExecutor(builder.build());
 
         ServerInfo actual = executor.getServerInfo(server.url("/v1/info").uri());
         assertEquals(actual.getEnvironment(), "test");

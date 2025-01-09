@@ -23,6 +23,8 @@ import okhttp3.Interceptor;
 import okhttp3.JavaNetCookieJar;
 import okhttp3.OkHttpClient;
 import okhttp3.Response;
+import okhttp3.internal.tls.LegacyHostnameVerifier;
+
 
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
@@ -167,7 +169,7 @@ public final class OkHttpUtil
             sslContext.init(null, new TrustManager[] {trustAllCerts}, new SecureRandom());
 
             clientBuilder.sslSocketFactory(sslContext.getSocketFactory(), trustAllCerts);
-            clientBuilder.hostnameVerifier((hostname, session) -> true);
+            clientBuilder.hostnameVerifier(LegacyHostnameVerifier.INSTANCE);
         }
         catch (GeneralSecurityException e) {
             throw new ClientException("Error setting up SSL: " + e.getMessage(), e);

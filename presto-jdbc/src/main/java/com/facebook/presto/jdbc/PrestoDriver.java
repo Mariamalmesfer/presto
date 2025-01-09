@@ -14,6 +14,8 @@
 package com.facebook.presto.jdbc;
 
 import okhttp3.OkHttpClient;
+import okhttp3.internal.tls.OkHostnameVerifier;
+import sun.net.www.protocol.https.DefaultHostnameVerifier;
 
 import java.io.Closeable;
 import java.sql.Connection;
