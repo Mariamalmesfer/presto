@@ -30,6 +30,7 @@ import com.facebook.presto.spi.ConnectorTableMetadata;
 import com.facebook.presto.spi.Constraint;
 import com.facebook.presto.spi.LocalProperty;
 import com.facebook.presto.spi.NotFoundException;
+import com.facebook.presto.spi.PrestoException;
 import com.facebook.presto.spi.SchemaTableName;
 import com.facebook.presto.spi.SchemaTablePrefix;
 import com.facebook.presto.spi.SortingProperty;
@@ -45,9 +46,14 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static com.facebook.presto.common.type.BigintType.BIGINT;
+import static com.facebook.presto.mongodb.MongoSession.buildQuery;
+import static com.facebook.presto.spi.StandardErrorCode.NOT_SUPPORTED;
+import static com.facebook.presto.mongodb.MongoSession.buildQuery;
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
@@ -56,6 +62,12 @@ import static java.util.stream.Collectors.toList;
 public class MongoMetadata
         implements ConnectorMetadata
 {
+    private static final String COMPLEX_DELETES = "This connector does not support complex deletes";
+
+    private static final String DELETE_ROW_ID = "_presto_delete_row_id";
+
+    private Constraint<ColumnHandle> constraint;
+
     private static final Logger log = Logger.get(MongoMetadata.class);
 
     private final MongoSession mongoSession;
@@ -170,6 +182,10 @@ public class MongoMetadata
                     localProperties.add(new SortingProperty<>(columns.get(key.getName()), key.getSortOrder().get()));
                 }
             }
+        }
+
+        if (!buildQuery(constraint.getSummary()).isEmpty()) {
+            this.constraint = constraint;
         }
 
         ConnectorTableLayout layout = new ConnectorTableLayout(
@@ -319,4 +335,40 @@ public class MongoMetadata
     {
         mongoSession.dropColumn(((MongoTableHandle) tableHandle), ((MongoColumnHandle) column).getName());
     }
+
+    @Override
+    public ColumnHandle getDeleteRowIdColumnHandle(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        return new MongoColumnHandle(DELETE_ROW_ID, BIGINT, true);
+    }
+
+    @Override
+    public ConnectorTableHandle beginDelete(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        if (constraint != null) {
+            return tableHandle;
+        }
+        throw new PrestoException(NOT_SUPPORTED, COMPLEX_DELETES);
+    }
+
+    @Override
+    public void finishDelete(ConnectorSession session, ConnectorTableHandle tableHandle, Collection<Slice> fragments) {
+        MongoTableHandle table = (MongoTableHandle) tableHandle;
+
+        OptionalLong.of(mongoSession.deleteDocuments(table.getSchemaTableName(), Optional.ofNullable(constraint.getSummary())));
+    }
+
+    @Override
+    public boolean supportsMetadataDelete(ConnectorSession session, ConnectorTableHandle tableHandle, Optional<ConnectorTableLayoutHandle> tableLayoutHandle)
+    {
+        return tableLayoutHandle.isPresent();
+    }
+
+    @Override
+    public OptionalLong metadataDelete(ConnectorSession session, ConnectorTableHandle tableHandle, ConnectorTableLayoutHandle tableLayoutHandle)
+    {
+        MongoTableHandle table = (MongoTableHandle) tableHandle;
+        return OptionalLong.of(mongoSession.deleteDocuments(table.getSchemaTableName(), Optional.empty()));
+    }
+
 }
